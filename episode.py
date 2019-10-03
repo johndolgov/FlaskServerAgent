@@ -15,7 +15,7 @@ parser.add_argument('--task-par-min', type=int, default=None)
 parser.add_argument('--nodes', type=np.ndarray, default=None)
 parser.add_argument('--state-size', type=int, default=None)
 parser.add_argument('--batch-size', type=int, default=None)
-parser.add_argument('--wfs-name', type=List, default=None)
+parser.add_argument('--wfs-name', type=str, default=None)
 parser.add_argument('--is-test', type=bool, default=False)
 parser.add_argument('--num-episodes', type=int, default=1)
 parser.add_argument('--is-parallel', type=bool, default=False)
@@ -29,7 +29,10 @@ def parameter_setup(args, config):
     dict_args = vars(args)
     for key, value in dict_args.items():
         if value is not None:
-            config[key] = value
+            if key is 'wfs_name':
+                config[key] = [value]
+            else:
+                config[key] = value
     return config
 
 
