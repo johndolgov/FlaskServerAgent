@@ -12,8 +12,24 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adam
 
 
-class DQNActor:
-    def __init__(self, state_size, action_size, name='actor'):
+class LSTMDeque(object):
+    def __init__(self, seq_size, size):
+        self.seq_size = seq_size
+        self.size = size
+        self.deque = np.zeros((seq_size, size))
+
+    def push(self, x):
+        slc = self.deque[1:]
+        self.deque = np.zeros((self.seq_size, self.size))
+        self.deque[:-1] = slc
+        self.deque[-1] = x
+
+    def show(self):
+        return self.deque
+
+
+class DQNLSTMActor:
+    def __init__(self, state_size, action_size, seq_size, name='actor'):
         self.STATE = state_size
         self.ACTIONS = action_size  # number of  actions
         self.FINAL_GAMMA = 0.9  # decay rate of past observations
@@ -29,6 +45,8 @@ class DQNActor:
         self.INITIAL_EPSILON = 0.4  # starting value of epsilon
         self.REPLAY_MEMORY = 30  # number of previous transitions to remember
         self.LEARNING_RATE = 1e-4
+        self.seq_size = seq_size
+        self.lstm_deque = LSTMDeque(seq_size=seq_size, size=self.STATE)
         self.D = deque(maxlen=self.REPLAY_MEMORY)
         self.model = self.buildmodel()
         self.epsilon = self.INITIAL_EPSILON
@@ -37,9 +55,7 @@ class DQNActor:
 
     def buildmodel(self):
         model = Sequential()
-        model.add(Dense(1024, input_dim=self.STATE, activation='relu'))
-        model.add(Dense(512, activation='relu'))
-        model.add(Dense(256, activation='relu'))
+        model.add(LSTM(64, input_dim=self.STATE, activation='tanh'))
         model.add(Dense(self.ACTIONS, activation='relu'))
         adam = Adam(lr=self.LEARNING_RATE)
         model.compile(loss='mse', optimizer=adam)
@@ -49,7 +65,7 @@ class DQNActor:
         self.D.append(SARSA)
         return True
 
-    def act(self, state, mask, sched=False):
+    def act(self, states, mask, sched=False):
         if max(mask) == 0:
             raise Exception("no valid actions")
         # choose an action epsilon greedy
@@ -59,7 +75,7 @@ class DQNActor:
                 q *= mask
             action_index = np.argmax(q)
         else:
-            q = self.model.predict(state)
+            q = self.model.predict(states)
             if mask is not 'none':
                 q *= mask
             if q.max() == 0:
@@ -78,13 +94,15 @@ class DQNActor:
         else:
             if not self.can_replay:
                 self.can_replay += 1
+
         # observation используется для того чтобы заполнить память рандомными действиями
+
         if self.can_replay and len(self.D) >= batch_size:
             #print('Replay is working')
             # выбираем batch_size действий из памяти
             minibatch = random.sample(self.D, batch_size)
             # мы оптимизируем функцию Q(s,a), соотвественно - вход сети s, выход a
-            inputs = np.zeros((len(minibatch), self.STATE))
+            inputs = np.zeros((len(minibatch), self.seq_size, self.STATE))
             targets = np.zeros((inputs.shape[0], self.ACTIONS))
             # преобразуем каждую строку из памяти, чтобы использовать sarsa
             for i in range(0, len(minibatch)):
@@ -122,9 +140,9 @@ class DQNActor:
     # функции для загрузки/сохранения весов
     def save(self, name):
         print("Now we save model")
-        self.model.save_weights(name+"_fc.h5", overwrite=True)
+        self.model.save_weights(name+"_lstm.h5", overwrite=True)
         json_model = self.model.to_json()
-        with open(name+"_fc.json", "w") as outfile:
+        with open(name+"_lstm.json", "w") as outfile:
             json.dump(self.model.to_json(), outfile)
         return json_model
 

@@ -5,6 +5,7 @@ import seaborn as sns
 import networkx as nkx
 import os
 
+
 def draw_schedule_file(input_path, worst, name):
     schedule = dict()
     file = open(input_path, 'r')
