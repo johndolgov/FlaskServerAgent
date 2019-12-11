@@ -55,11 +55,11 @@ class DQNLSTMActor:
 
     def buildmodel(self, first_lstm_layer = 32, second_lstm_layer = None):
         model = Sequential()
-        if second_lstm_layer:
+        if second_lstm_layer != 0:
             model.add(LSTM(first_lstm_layer, input_dim=self.STATE, activation='tanh', return_sequences=True))
             model.add(LSTM(second_lstm_layer, activation='tanh'))
         else:
-            model.add(LSTM(first_lstm_layer, activation='tanh'))
+            model.add(LSTM(first_lstm_layer, input_dim=self.STATE, activation='tanh'))
         model.add(Dense(self.ACTIONS, activation='relu'))
         adam = Adam(lr=self.LEARNING_RATE)
         model.compile(loss='mse', optimizer=adam)
