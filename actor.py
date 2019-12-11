@@ -13,7 +13,10 @@ from keras.optimizers import SGD, Adam
 
 
 class DQNActor:
-    def __init__(self, state_size, action_size, name='actor'):
+    def __init__(self, first, second, third, state_size, action_size, name='actor'):
+        self.FIRST_LAYER = first
+        self.SECOND_LAYER = second
+        self.THIRD_LAYER = third
         self.STATE = state_size
         self.ACTIONS = action_size  # number of  actions
         self.FINAL_GAMMA = 0.9  # decay rate of past observations
@@ -30,16 +33,16 @@ class DQNActor:
         self.REPLAY_MEMORY = 30  # number of previous transitions to remember
         self.LEARNING_RATE = 1e-4
         self.D = deque(maxlen=self.REPLAY_MEMORY)
-        self.model = self.buildmodel()
+        self.model = self.buildmodel(self.FIRST_LAYER, self.SECOND_LAYER, self.THIRD_LAYER)
         self.epsilon = self.INITIAL_EPSILON
         self.replay_counter = 0
         self.can_replay = False
 
-    def buildmodel(self):
+    def buildmodel(self, first=1024, second=512, third=256):
         model = Sequential()
-        model.add(Dense(1024, input_dim=self.STATE, activation='relu'))
-        model.add(Dense(512, activation='relu'))
-        model.add(Dense(256, activation='relu'))
+        model.add(Dense(first, input_dim=self.STATE, activation='relu'))
+        model.add(Dense(second, activation='relu'))
+        model.add(Dense(third, activation='relu'))
         model.add(Dense(self.ACTIONS, activation='relu'))
         adam = Adam(lr=self.LEARNING_RATE)
         model.compile(loss='mse', optimizer=adam)

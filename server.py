@@ -12,6 +12,11 @@ parser = ArgumentParser()
 parser.add_argument('--state-size', type=int, default=64)
 parser.add_argument('--agent-tasks', type=int, default=5)
 parser.add_argument('--is-lstm-agent', type=bool, default=False)
+parser.add_argument('--first-lstm-layer', type=int, default=32)
+parser.add_argument('--second-lstm-layer', type=int,default=0)
+parser.add_argument('--first-fc-layer', type=int, default=1024)
+parser.add_argument('--second-fc-layer', type=int, default=512)
+parser.add_argument('--third-fc-layer', type=int, default=256)
 parser.add_argument('--seq-size', type=int, default=5)
 parser.add_argument('--nodes', type=int, default=4)
 parser.add_argument('--load', type=bool, default=False)
@@ -23,6 +28,11 @@ app = flask.Flask(__name__)
 app.config['state_size'] = args.state_size
 app.config['action_size'] = args.agent_tasks*args.nodes
 app.config['is_lstm_agent'] = args.is_lstm_agent
+app.config['first_lstm_layer'] = args.first_lstm_layer
+app.config['second_lstm_layer'] = args.second_lstm_layer
+app.config['first_fc_layer'] = args.first_fc_layer
+app.config['second_fc_layer'] = args.second_fc_layer
+app.config['third_fc_layer'] = args.third_fc_layer
 app.config['seq_size'] = args.seq_size
 app.config['load'] = args.load
 
@@ -34,19 +44,24 @@ def get_model():
     is_lstm = app.config.get('is_lstm_agent')
     seq_size = app.config.get('seq_size')
     load = app.config.get('load')
+    first_lstm_layer = app.config.get('first_lstm_layer')
+    second_lstm_layer = app.config.get('second_lstm_layer')
+    first_fc_layer = app.config.get('first_fc_layer')
+    second_fc_layer = app.config.get('second_fc_layer')
+    third_fc_layer = app.config.get('third_fc_layer')
     name = 'actor'
     if not load:
         if not is_lstm:
-            return DQNActor(state_size, action_size, name)
+            return DQNActor(first_fc_layer, second_fc_layer, third_fc_layer, state_size, action_size, name)
         else:
-            return DQNLSTMActor(state_size, action_size, seq_size, name)
+            return DQNLSTMActor(state_size, action_size, seq_size, first_lstm_layer, second_lstm_layer, name)
     else:
         if not is_lstm:
-            fc_model = DQNActor(state_size, action_size, name)
+            fc_model = DQNActor(first_fc_layer, second_fc_layer, third_fc_layer,state_size, action_size, name)
             fc_model.load('model_fc.h5')
             return fc_model
         else:
-            lstm_model = DQNLSTMActor(state_size, action_size, seq_size, name)
+            lstm_model = DQNLSTMActor(state_size, action_size, seq_size, first_lstm_layer, second_lstm_layer, name)
             lstm_model.load('model_lstm.h5')
             return lstm_model
 

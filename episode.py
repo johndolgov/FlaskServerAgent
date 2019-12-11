@@ -8,6 +8,8 @@ from actorlstm import LSTMDeque
 import matplotlib.pyplot as plt
 import pathlib
 import os
+import time
+import csv
 
 parser = ArgumentParser()
 parser.add_argument('--host', type=str, default='localhost')
@@ -207,16 +209,20 @@ def save():
 
 
 if __name__ == '__main__':
+    start = time.time()
     args = parser.parse_args()
     URL = f'http://{args.host}:{args.port}/'
     if not args.is_test:
         if not args.is_lstm_actor:
             rewards = [run_episode_not_parallel(ei, args) for ei in range(args.num_episodes)]
             means = np.convolve(rewards, np.ones((500,)))[499:-499]/500
+            means = means.tolist()
         else:
             rewards = [run_episode_lstm(ei, args) for ei in range(args.num_episodes)]
             means = np.convolve(rewards, np.ones((500,)))[499:-499]/500
+            means = means.tolist()
 
+        a = time.time() - start
         plt.style.use("seaborn-muted")
         plt.figure(figsize=(10, 5))
         plt.plot(rewards, '--', label="rewards")
@@ -227,6 +233,16 @@ if __name__ == '__main__':
         cur_dir = os.getcwd()
         plt_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_plt.png'
         plt.savefig(plt_path)
+
+        reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_rewards.csv'
+        with open(reward_path, 'w', newline='') as myfile:
+            wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+            wr.writerow(rewards)
+
+        mean_reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_mean_rewards.csv'
+        with open(mean_reward_path, 'w', newline='') as myfile:
+            wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+            wr.writerow(means)
 
     else:
         if not args.is_lstm_actor:

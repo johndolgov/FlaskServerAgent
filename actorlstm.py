@@ -29,7 +29,7 @@ class LSTMDeque(object):
 
 
 class DQNLSTMActor:
-    def __init__(self, state_size, action_size, seq_size, name='actor'):
+    def __init__(self, state_size, action_size, seq_size, first_lstm_layer, second_lstm_layer, name='actor'):
         self.STATE = state_size
         self.ACTIONS = action_size  # number of  actions
         self.FINAL_GAMMA = 0.9  # decay rate of past observations
@@ -48,14 +48,18 @@ class DQNLSTMActor:
         self.seq_size = seq_size
         self.lstm_deque = LSTMDeque(seq_size=seq_size, size=self.STATE)
         self.D = deque(maxlen=self.REPLAY_MEMORY)
-        self.model = self.buildmodel()
+        self.model = self.buildmodel(first_lstm_layer, second_lstm_layer)
         self.epsilon = self.INITIAL_EPSILON
         self.replay_counter = 0
         self.can_replay = False
 
-    def buildmodel(self):
+    def buildmodel(self, first_lstm_layer = 32, second_lstm_layer = None):
         model = Sequential()
-        model.add(LSTM(64, input_dim=self.STATE, activation='tanh'))
+        if second_lstm_layer:
+            model.add(LSTM(first_lstm_layer, input_dim=self.STATE, activation='tanh', return_sequences=True))
+            model.add(LSTM(second_lstm_layer, activation='tanh'))
+        else:
+            model.add(LSTM(first_lstm_layer, activation='tanh'))
         model.add(Dense(self.ACTIONS, activation='relu'))
         adam = Adam(lr=self.LEARNING_RATE)
         model.compile(loss='mse', optimizer=adam)
