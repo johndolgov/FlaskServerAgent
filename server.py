@@ -20,8 +20,10 @@ parser.add_argument('--third-fc-layer', type=int, default=256)
 parser.add_argument('--seq-size', type=int, default=5)
 parser.add_argument('--nodes', type=int, default=4)
 parser.add_argument('--load', type=bool, default=False)
+parser.add_argument('--load-path', type=str, default=None)
 parser.add_argument('--host', type=str, default='localhost')
 parser.add_argument('--port', type=int, default=9900)
+parser.add_argument('--model-name', type=str, default='')
 
 args = parser.parse_args()
 app = flask.Flask(__name__)
@@ -35,6 +37,8 @@ app.config['second_fc_layer'] = args.second_fc_layer
 app.config['third_fc_layer'] = args.third_fc_layer
 app.config['seq_size'] = args.seq_size
 app.config['load'] = args.load
+app.config['load_path'] = args.load_path
+app.config['model_name'] = args.model_name
 
 
 @app.route('/')
@@ -49,20 +53,30 @@ def get_model():
     first_fc_layer = app.config.get('first_fc_layer')
     second_fc_layer = app.config.get('second_fc_layer')
     third_fc_layer = app.config.get('third_fc_layer')
-    name = 'actor'
+    load_path = app.config.get('load_path')
+    model_name = app.config.get('model_name')
+    if not model_name:
+        model_name = 'model_fc.h5' if not is_lstm else 'model_lstm.h5'
+        print(model_name)
     if not load:
         if not is_lstm:
-            return DQNActor(first_fc_layer, second_fc_layer, third_fc_layer, state_size, action_size, name)
+            return DQNActor(first_fc_layer, second_fc_layer, third_fc_layer, state_size, action_size, model_name)
         else:
-            return DQNLSTMActor(state_size, action_size, seq_size, first_lstm_layer, second_lstm_layer, name)
+            return DQNLSTMActor(state_size, action_size, seq_size, first_lstm_layer, second_lstm_layer, model_name)
     else:
         if not is_lstm:
-            fc_model = DQNActor(first_fc_layer, second_fc_layer, third_fc_layer,state_size, action_size, name)
-            fc_model.load('model_fc.h5')
+            fc_model = DQNActor(first_fc_layer, second_fc_layer, third_fc_layer, state_size, action_size, model_name)
+            if load_path is not '':
+                fc_model.load(model_name, path=load_path)
+            else:
+                fc_model.load(model_name)
             return fc_model
         else:
-            lstm_model = DQNLSTMActor(state_size, action_size, seq_size, first_lstm_layer, second_lstm_layer, name)
-            lstm_model.load('model_lstm.h5')
+            lstm_model = DQNLSTMActor(state_size, action_size, seq_size, first_lstm_layer, second_lstm_layer, model_name)
+            if load_path is not '':
+                lstm_model.load(model_name, path=load_path)
+            else:
+                lstm_model.load(model_name)
             return lstm_model
 
 
@@ -131,7 +145,7 @@ def remember():
 @app.route('/save', methods=['POST'])
 def save():
     json_model = model.save('model')
-    return send_from_directory(os.getcwd(), 'model.h5')
+    return json_model
 
 
 if __name__ == '__main__':
