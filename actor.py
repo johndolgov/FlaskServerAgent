@@ -30,7 +30,7 @@ class DQNActor:
         # более рандомны, чем в начале, поэтому мы снижаем e от INITIAL до FINAL за EXPLORE шагов
         self.FINAL_EPSILON = 0.01  # final value of epsilon
         self.INITIAL_EPSILON = 0.4  # starting value of epsilon
-        self.REPLAY_MEMORY = 30  # number of previous transitions to remember
+        self.REPLAY_MEMORY = 3000  # number of previous transitions to remember
         self.LEARNING_RATE = 1e-4
         self.D = deque(maxlen=self.REPLAY_MEMORY)
         self.model = self.buildmodel(self.FIRST_LAYER, self.SECOND_LAYER, self.THIRD_LAYER)

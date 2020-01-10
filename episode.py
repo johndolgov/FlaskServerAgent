@@ -24,13 +24,13 @@ parser.add_argument('--batch-size', type=int, default=None)
 parser.add_argument('--wfs-name', type=str, default=None)
 parser.add_argument('--is-test', type=bool, default=False)
 parser.add_argument('--num-episodes', type=int, default=1)
-parser.add_argument('--is-lstm-actor', type=bool, default=False)
+parser.add_argument('--is-lstm-agent', type=bool, default=False)
 parser.add_argument('--run-name', type=str, default='NoName')
 parser.add_argument('--save', type=bool, default=False)
 
 DEFAULT_CONFIG = {'task_par': 30, 'agent_task': 5, 'task_par_min': 20,
                   'nodes': np.array([4, 8, 8, 16]), 'state_size': 64,
-                  'batch_size': 16, 'wfs_name': ['Montage_25'], 'seq_size': 5}
+                  'batch_size': 64, 'wfs_name': ['Montage_25'], 'seq_size': 5}
 
 
 def parameter_setup(args, config):
@@ -166,7 +166,7 @@ def test_agent(args):
                 test_scores[i].append(reward)
                 test_times[i].append(wf_time)
                 break
-        write_schedule(i, wfl)
+        write_schedule(args.run_name, i, wfl)
 
 
 def test_agent_lstm(args):
@@ -195,7 +195,7 @@ def test_agent_lstm(args):
             if done:
                 test_scores[i].append(reward)
                 test_times[i].append(wf_time)
-        write_schedule(i, wfl)
+        write_schedule(args.run_name, i, wfl)
 
 
 def save():
@@ -207,7 +207,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     URL = f'http://{args.host}:{args.port}/'
     if not args.is_test:
-        if not args.is_lstm_actor:
+        if not args.is_lstm_agent:
             rewards = [run_episode_not_parallel(ei, args) for ei in range(args.num_episodes)]
             means = np.convolve(rewards, np.ones((500,)))[499:-499]/500
             means = means.tolist()
@@ -239,7 +239,7 @@ if __name__ == '__main__':
             wr.writerow(means)
 
     else:
-        if not args.is_lstm_actor:
+        if not args.is_lstm_agent:
             test_agent(args)
         else:
             test_agent_lstm(args)

@@ -43,7 +43,7 @@ class DQNLSTMActor:
         # более рандомны, чем в начале, поэтому мы снижаем e от INITIAL до FINAL за EXPLORE шагов
         self.FINAL_EPSILON = 0.01  # final value of epsilon
         self.INITIAL_EPSILON = 0.4  # starting value of epsilon
-        self.REPLAY_MEMORY = 30  # number of previous transitions to remember
+        self.REPLAY_MEMORY = 3000  # number of previous transitions to remember
         self.LEARNING_RATE = 1e-4
         self.seq_size = seq_size
         self.lstm_deque = LSTMDeque(seq_size=seq_size, size=self.STATE)

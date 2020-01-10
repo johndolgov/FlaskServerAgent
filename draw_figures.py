@@ -81,7 +81,7 @@ def scores_draw_file(path):
     pass
 
 
-def draw_schedule(test_i, wfl):
+def draw_schedule(run_name, test_i, wfl):
     schedule = wfl.schedule
     worst = wfl.worst_time
     n = wfl.n
@@ -104,10 +104,10 @@ def draw_schedule(test_i, wfl):
     plt.legend()
     plt.ylim(0, m)
     plt.xlim(0, worst)
-    plt.title("test {} {}".format(test_i, 'Test'))
+    plt.title("{}_{}".format(run_name, test_i))
     # plt.show()
     path = os.path.join(os.getcwd(), 'results')
-    plt.savefig(os.path.join(path, "testwf_{}_episode_{}.png".format(test_i, 'Test')))
+    plt.savefig(os.path.join(path, "schedule_{}_{}.png".format(run_name, test_i)))
     plt.close()
 
 
@@ -128,16 +128,16 @@ def draw_graph(components, idx, wf_name=""):
     plt.close()
 
 
-def write_schedule(test_i, wfl):
+def write_schedule(run_name, test_i, wfl):
     path = os.path.join(os.getcwd(), 'results')
-    file = open(os.path.join(path, "testwf_{}_episode_{}".format(test_i, 'Test')), 'w')
+    file = open(os.path.join(path, "schedule_{}_{}".format(run_name, test_i)), 'w')
     for r in list(wfl.schedule.keys()):
         file.write("res_{}\n".format(r))
         sched = wfl.schedule[r]
         for item in sched:
             file.write("{}_{}_{}\n".format(item.task, item.st_time, item.end_time))
     file.close()
-    draw_schedule(test_i, wfl)
+    draw_schedule(run_name, test_i, wfl)
 
 
 if __name__ == '__main__':
