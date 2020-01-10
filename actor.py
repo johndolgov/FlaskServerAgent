@@ -1,6 +1,7 @@
 import random
 import numpy as np
 import json
+import pathlib
 import time
 from collections import deque
 from keras import initializers
@@ -13,7 +14,7 @@ from keras.optimizers import SGD, Adam
 
 
 class DQNActor:
-    def __init__(self, first, second, third, state_size, action_size, name='actor'):
+    def __init__(self, first, second, third, state_size, action_size, name='actor', host='localhost', port='8000'):
         self.FIRST_LAYER = first
         self.SECOND_LAYER = second
         self.THIRD_LAYER = third
@@ -129,11 +130,33 @@ class DQNActor:
         json_model = self.model.to_json()
         with open(name+"_fc.json", "w") as outfile:
             json.dump(self.model.to_json(), outfile)
+
+        config = {'first-fc-layer': self.FIRST_LAYER,
+                  'second-fc-layer': self.SECOND_LAYER,
+                  'third-fc-layer': self.THIRD_LAYER,
+                  'name': name+"_fc.h5"}
+
+        with open('config.json', 'w') as fp:
+            json.dump(config, fp)
+
         return json_model
 
-    def load(self, name):
+    def load(self, name, path=None):
         print("Now we load weight")
-        self.model.load_weights(name)
+        if path is not None:
+            json_path = pathlib.Path(path) / 'config.json'
+            model_path = pathlib.Path(path) / name
+        else:
+            json_path = pathlib.Path('config.json')
+            model_path = pathlib.Path(name)
+        with open(json_path, 'r') as fp:
+            config = json.load(fp)
+
+        self.model = self.buildmodel(first=config['first-fc-layer'],
+                                     second=config['second-fc-layer'],
+                                     third=config['third-fc-layer'])
+
+        self.model.load_weights(model_path)
         adam = Adam(lr=self.LEARNING_RATE)
         self.model.compile(loss='mse', optimizer=adam)
         print("Weight load successfully")

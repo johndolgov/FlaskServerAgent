@@ -10,6 +10,7 @@ from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers import LSTM, Embedding
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adam
+import pathlib
 
 
 class LSTMDeque(object):
@@ -29,9 +30,11 @@ class LSTMDeque(object):
 
 
 class DQNLSTMActor:
-    def __init__(self, state_size, action_size, seq_size, first_lstm_layer, second_lstm_layer, name='actor'):
+    def __init__(self, state_size, action_size, seq_size, first_lstm_layer, second_lstm_layer=None, name='actor', host='localhost', port='8000'):
         self.STATE = state_size
         self.ACTIONS = action_size  # number of  actions
+        self.FIRST_LSTM_LAYER = first_lstm_layer
+        self.SECOND_LSTM_LAYER = second_lstm_layer
         self.FINAL_GAMMA = 0.9  # decay rate of past observations
         self.INITIAL_GAMMA = 0.9  # decay rate of past observations
         self.GAMMA = self.INITIAL_GAMMA  # decay rate of past observations
@@ -52,8 +55,10 @@ class DQNLSTMActor:
         self.epsilon = self.INITIAL_EPSILON
         self.replay_counter = 0
         self.can_replay = False
+        self.host = host
+        self.port = port
 
-    def buildmodel(self, first_lstm_layer = 32, second_lstm_layer = None):
+    def buildmodel(self, first_lstm_layer=32, second_lstm_layer=None):
         model = Sequential()
         if second_lstm_layer != 0:
             model.add(LSTM(first_lstm_layer, input_dim=self.STATE, activation='tanh', return_sequences=True))
@@ -146,13 +151,33 @@ class DQNLSTMActor:
         print("Now we save model")
         self.model.save_weights(name+"_lstm.h5", overwrite=True)
         json_model = self.model.to_json()
+
+        config = {'first-lstm-layer': self.FIRST_LSTM_LAYER,
+                  'second-lstm-layer': self.SECOND_LSTM_LAYER,
+                  'name': name + "_lstm.h5"}
+
+        with open('config.json', 'w') as fp:
+            json.dump(config, fp)
+
         with open(name+"_lstm.json", "w") as outfile:
             json.dump(self.model.to_json(), outfile)
         return json_model
 
-    def load(self, name):
+    def load(self, name, path=None):
         print("Now we load weight")
-        self.model.load_weights(name)
+        if path is not None:
+            json_path = pathlib.Path(path) / 'config.json'
+            model_path = pathlib.Path(path) / name
+        else:
+            json_path = pathlib.Path('config.json')
+            model_path = pathlib.Path(name)
+        with open(json_path, 'r') as fp:
+            config = json.load(fp)
+
+        self.model = self.buildmodel(first_lstm_layer=config['first-lstm-layer'],
+                                     second_lstm_layer=config['second-lstm-layer'])
+
+        self.model.load_weights(model_path)
         adam = Adam(lr=self.LEARNING_RATE)
         self.model.compile(loss='mse', optimizer=adam)
         print("Weight load successfully")
