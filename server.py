@@ -2,33 +2,51 @@ import flask
 from flask import request, send_from_directory
 from actor import DQNActor
 from actorlstm import DQNLSTMActor
+from heft_deps.ExperimentalManager import ExperimentResourceManager, ModelTimeEstimator
+from heft_deps.resource_generator import ResourceGenerator as rg
+from heft_deps.heft_utility import wf, Utility
 from flask import jsonify
 from argparse import ArgumentParser
+from heft_deps.heft_settings import run_heft
+from heft_deps.heft_utility import Utility
 import numpy as np
 import tensorflow as tf
 import os
 
 parser = ArgumentParser()
+
+parser.add_argument('--alg', type=str, default='nns')
+
+
+# HEFT parameters
+
+
+# NNs paramters
+
 parser.add_argument('--state-size', type=int, default=64)
 parser.add_argument('--agent-tasks', type=int, default=5)
 parser.add_argument('--is-lstm-agent', type=bool, default=False)
 parser.add_argument('--first-lstm-layer', type=int, default=32)
-parser.add_argument('--second-lstm-layer', type=int,default=0)
+parser.add_argument('--second-lstm-layer', type=int, default=0)
 parser.add_argument('--first-fc-layer', type=int, default=1024)
 parser.add_argument('--second-fc-layer', type=int, default=512)
 parser.add_argument('--third-fc-layer', type=int, default=256)
 parser.add_argument('--seq-size', type=int, default=5)
-parser.add_argument('--nodes', type=int, default=4)
 parser.add_argument('--load', type=bool, default=False)
 parser.add_argument('--load-path', type=str, default=None)
+
+parser.add_argument('--nodes', type=int, default=4)
 parser.add_argument('--host', type=str, default='localhost')
 parser.add_argument('--port', type=int, default=9900)
 parser.add_argument('--model-name', type=str, default='')
 
 args = parser.parse_args()
 app = flask.Flask(__name__)
+
+app.config['alg'] = args.alg
+
 app.config['state_size'] = args.state_size
-app.config['action_size'] = args.agent_tasks*args.nodes
+app.config['action_size'] = args.agent_tasks * args.nodes
 app.config['is_lstm_agent'] = args.is_lstm_agent
 app.config['first_lstm_layer'] = args.first_lstm_layer
 app.config['second_lstm_layer'] = args.second_lstm_layer
@@ -72,7 +90,8 @@ def get_model():
                 fc_model.load(model_name)
             return fc_model
         else:
-            lstm_model = DQNLSTMActor(state_size, action_size, seq_size, first_lstm_layer, second_lstm_layer, model_name)
+            lstm_model = DQNLSTMActor(state_size, action_size, seq_size, first_lstm_layer, second_lstm_layer,
+                                      model_name)
             if load_path is not '':
                 lstm_model.load(model_name, path=load_path)
             else:
@@ -148,13 +167,22 @@ def save():
     return json_model
 
 
+@app.route('/heft', methods=['POST'])
+def heft():
+    data = request.get_json()
+    wf_name = data['wf_name']
+    rm = ExperimentResourceManager(rg.r(data['nodes']))
+    estimator = ModelTimeEstimator(bandwidth=10)
+    _wf = wf(wf_name)
+    heft_schedule = run_heft(_wf, rm, estimator)
+    makespan = Utility.makespan(heft_schedule)
+    response = {'makespan': makespan}
+    return response
+
+
 if __name__ == '__main__':
-    graph = tf.get_default_graph()
-    model = get_model()
+    if args.alg == 'nns':
+        graph = tf.get_default_graph()
+        model = get_model()
     URL = f'http://{args.host}:{args.port}/'
     app.run(host=args.host, port=args.port, debug=True)
-
-
-
-
-

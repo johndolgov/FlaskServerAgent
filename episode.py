@@ -5,6 +5,7 @@ from wf_gen_funcs import tree_data_wf, read_wf
 from argparse import ArgumentParser
 from draw_figures import write_schedule
 from actorlstm import LSTMDeque
+from heft_deps.heft_settings import run_heft
 import matplotlib.pyplot as plt
 import pathlib
 import os
@@ -12,6 +13,9 @@ import time
 import csv
 
 parser = ArgumentParser()
+
+parser.add_argument('--alg', type=str, default='nns')
+
 parser.add_argument('--host', type=str, default='localhost')
 parser.add_argument('--port', type=int, default=9900)
 parser.add_argument('--task-par', type=int, default=None)
@@ -202,46 +206,58 @@ def save():
     model = requests.post(f'{URL}save')
 
 
+def do_heft(args):
+    global URL
+    config = parameter_setup(args, DEFAULT_CONFIG)
+    print(config['wfs_name'][0], config['nodes'].tolist())
+    makespan = requests.post(f'{URL}heft', json={'wf_name': config['wfs_name'][0], 'nodes': config['nodes'].tolist()}).json()
+    return makespan['makespan']
+
+
 if __name__ == '__main__':
     start = time.time()
     args = parser.parse_args()
     URL = f'http://{args.host}:{args.port}/'
-    if not args.is_test:
-        if not args.is_lstm_agent:
-            rewards = [run_episode_not_parallel(ei, args) for ei in range(args.num_episodes)]
-            means = np.convolve(rewards, np.ones((500,)))[499:-499]/500
-            means = means.tolist()
+    if args.alg == 'nns':
+        if not args.is_test:
+            if not args.is_lstm_agent:
+                rewards = [run_episode_not_parallel(ei, args) for ei in range(args.num_episodes)]
+                means = np.convolve(rewards, np.ones((500,)))[499:-499] / 500
+                means = means.tolist()
+            else:
+                rewards = [run_episode_lstm(ei, args) for ei in range(args.num_episodes)]
+                means = np.convolve(rewards, np.ones((500,)))[499:-499] / 500
+                means = means.tolist()
+
+            a = time.time() - start
+            plt.style.use("seaborn-muted")
+            plt.figure(figsize=(10, 5))
+            plt.plot(rewards, '--', label="rewards")
+            plt.plot(means, '-', label="avg")
+            plt.ylabel('reward')
+            plt.xlabel('episodes')
+            plt.legend()
+            cur_dir = os.getcwd()
+            plt_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_plt.png'
+            plt.savefig(plt_path)
+
+            reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_rewards.csv'
+            with open(reward_path, 'w', newline='') as myfile:
+                wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+                wr.writerow(rewards)
+
+            mean_reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_mean_rewards.csv'
+            with open(mean_reward_path, 'w', newline='') as myfile:
+                wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+                wr.writerow(means)
+
         else:
-            rewards = [run_episode_lstm(ei, args) for ei in range(args.num_episodes)]
-            means = np.convolve(rewards, np.ones((500,)))[499:-499]/500
-            means = means.tolist()
-
-        a = time.time() - start
-        plt.style.use("seaborn-muted")
-        plt.figure(figsize=(10, 5))
-        plt.plot(rewards, '--', label="rewards")
-        plt.plot(means, '-', label="avg")
-        plt.ylabel('reward')
-        plt.xlabel('episodes')
-        plt.legend()
-        cur_dir = os.getcwd()
-        plt_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_plt.png'
-        plt.savefig(plt_path)
-
-        reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_rewards.csv'
-        with open(reward_path, 'w', newline='') as myfile:
-            wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-            wr.writerow(rewards)
-
-        mean_reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_mean_rewards.csv'
-        with open(mean_reward_path, 'w', newline='') as myfile:
-            wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-            wr.writerow(means)
-
-    else:
-        if not args.is_lstm_agent:
-            test_agent(args)
-        else:
-            test_agent_lstm(args)
-    if args.save:
-        save()
+            if not args.is_lstm_agent:
+                test_agent(args)
+            else:
+                test_agent_lstm(args)
+        if args.save:
+            save()
+    elif args.alg == 'heft':
+        ideal_flops = 8.0
+        print(do_heft(args))
