@@ -14,6 +14,10 @@ from heft_deps.settings import __root_path__
 from heft_deps.resource_manager import ScheduleItem, Schedule
 from heft_deps.DAXExtendParser import DAXParser
 
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import seaborn as sns
+
 
 def f_eq(a, b):
     """
@@ -27,6 +31,33 @@ def wf(wf_name, task_postfix_id="00", deadline=1000, is_head=True):
     dax_filepath = "{0}/resources/{1}.xml".format(__root_path__, wf_name)
     _wf = Utility.readWorkflow(dax_filepath, wf_name, task_postfix_id, deadline=deadline, is_head=is_head)
     return _wf
+
+
+def draw_heft_schedule(schedule, worst_time, n, run_name, test_i):
+    m = len(schedule.keys())
+    colors = sns.color_palette("Set2", n)
+    fig, ax = plt.subplots(1)
+    keys = list(schedule.keys())
+    used_colors = 0
+    for k in range(m):
+        items = schedule[keys[k]]
+        for it in items:
+            print("Task {}, st {} end {}".format(it.job, it.start_time, it.end_time))
+            coords = (it.start_time, k)
+            rect = patches.Rectangle(coords, it.end_time - it.start_time, 1, fill=True, facecolor=colors[used_colors],
+                                     label=it.job, alpha=0.5, edgecolor="black")
+            used_colors += 1
+            ax.add_patch(rect)
+            ax.text(coords[0] + (it.end_time - it.start_time) / 3, coords[1] + 0.5, str(it.job))
+
+    plt.legend()
+    plt.ylim(0, m)
+    plt.xlim(0, worst_time)
+    plt.title("{}_{}".format(run_name, test_i))
+    # plt.show()
+    path = os.path.join(os.getcwd(), 'results')
+    plt.savefig(os.path.join(path, "schedule_{}_{}.png".format(run_name, test_i)))
+    plt.close()
 
 
 def timing(f):

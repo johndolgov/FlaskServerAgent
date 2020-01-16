@@ -391,7 +391,6 @@ UP_JOB = Task("up_job", "up_job")
 DOWN_JOB = Task("down_job", "down_job")
 
 
-
 class Algorithm:
     def __init__(self):
         self.resource_manager = None

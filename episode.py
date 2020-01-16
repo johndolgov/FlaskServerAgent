@@ -209,9 +209,14 @@ def save():
 def do_heft(args):
     global URL
     config = parameter_setup(args, DEFAULT_CONFIG)
+    test_wfs, test_times, test_scores, test_size = wf_setup(config['wfs_name'])
+    ttree, tdata, trun_times = test_wfs[0]
+    wfl = ctx.Context(config['agent_task'], config['nodes'], trun_times, ttree, tdata)
+    worst_time = wfl.worst_time
     print(config['wfs_name'][0], config['nodes'].tolist())
-    makespan = requests.post(f'{URL}heft', json={'wf_name': config['wfs_name'][0], 'nodes': config['nodes'].tolist()}).json()
-    return makespan['makespan']
+    response = requests.post(f'{URL}heft', json={'wf_name': config['wfs_name'][0],
+                                                 'nodes': config['nodes'].tolist(), 'worst_time': worst_time}).json()
+    return response
 
 
 if __name__ == '__main__':

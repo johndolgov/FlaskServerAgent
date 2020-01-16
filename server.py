@@ -4,7 +4,7 @@ from actor import DQNActor
 from actorlstm import DQNLSTMActor
 from heft_deps.ExperimentalManager import ExperimentResourceManager, ModelTimeEstimator
 from heft_deps.resource_generator import ResourceGenerator as rg
-from heft_deps.heft_utility import wf, Utility
+from heft_deps.heft_utility import wf, Utility, draw_heft_schedule
 from flask import jsonify
 from argparse import ArgumentParser
 from heft_deps.heft_settings import run_heft
@@ -171,12 +171,16 @@ def save():
 def heft():
     data = request.get_json()
     wf_name = data['wf_name']
+    worst_time = data['worst_time']
     rm = ExperimentResourceManager(rg.r(data['nodes']))
     estimator = ModelTimeEstimator(bandwidth=10)
     _wf = wf(wf_name)
     heft_schedule = run_heft(_wf, rm, estimator)
     makespan = Utility.makespan(heft_schedule)
-    response = {'makespan': makespan}
+    reward = worst_time / makespan
+    draw_heft_schedule(heft_schedule.mapping, 1000, 25, 'h', '1')
+    print(reward)
+    response = {'makespan': makespan, 'reward': reward}
     return response
 
 
