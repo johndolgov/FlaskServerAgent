@@ -7,10 +7,13 @@ from draw_figures import write_schedule
 from actorlstm import LSTMDeque
 from heft_deps.heft_settings import run_heft
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 import pathlib
 import os
 import time
 import csv
+import glob
+import pandas as pd
 
 parser = ArgumentParser()
 
@@ -31,6 +34,8 @@ parser.add_argument('--num-episodes', type=int, default=1)
 parser.add_argument('--is-lstm-agent', type=bool, default=False)
 parser.add_argument('--run-name', type=str, default='NoName')
 parser.add_argument('--save', type=bool, default=False)
+parser.add_argument('--plot-csvs', type=bool, default=False)
+parser.add_argument('--result-folder', type=str, default='')
 
 DEFAULT_CONFIG = {'task_par': 30, 'agent_task': 5, 'task_par_min': 20,
                   'nodes': np.array([4, 8, 8, 16]), 'state_size': 64,
@@ -202,6 +207,51 @@ def test_agent_lstm(args):
         write_schedule(args.run_name, i, wfl)
 
 
+def test_heft(args):
+    global URL
+    config = parameter_setup(args, DEFAULT_CONFIG)
+    test_wfs, test_times, test_scores, test_size = wf_setup(config['wfs_name'])
+    response = requests.post(f'{URL}heft', json={'wf_name': config['wfs_name'][0],
+                                                 'nodes': config['nodes'].tolist()}).json()
+    actions = response['actions']
+    dif_actions = list(map(lambda x: (x[0] % config['agent_task'], x[1]), actions))
+    for i in range(test_size):
+        ttree, tdata, trun_times = test_wfs[i]
+        wfl = ctx.Context(config['agent_task'], config['nodes'], trun_times, ttree, tdata)
+        wfl.name = config['wfs_name'][i]
+        reward = 0
+        wf_time = 0
+        for idx in range(len(dif_actions)):
+            print(wfl.candidates)
+            print(wfl.actions)
+            act_t, act_n = dif_actions[idx]
+            reward, wf_time = wfl.make_action(act_t, act_n)
+            next_state = list(map(float, list(wfl.state)))
+            done = wfl.completed
+            state = next_state
+            if done:
+                test_scores[i].append(reward)
+                test_times[i].append(wf_time)
+                break
+        write_schedule(args.run_name, 0, wfl)
+
+
+def test_heft_simple(args):
+    global URL
+    config = parameter_setup(args, DEFAULT_CONFIG)
+    test_wfs, test_times, test_scores, test_size = wf_setup(config['wfs_name'])
+    ttree, tdata, trun_times = test_wfs[0]
+    wfl = ctx.Context(config['agent_task'], config['nodes'], trun_times, ttree, tdata)
+    worst_time = wfl.worst_time
+    response = requests.post(f'{URL}heft', json={'wf_name': config['wfs_name'][0],
+                                                 'nodes': config['nodes'].tolist(), 'worst_time': worst_time}).json()
+    actions = response['actions']
+    worst_time = wfl.worst_time
+    reward = worst_time / response['makespan']
+    return reward
+
+
+
 def save():
     model = requests.post(f'{URL}save')
 
@@ -219,11 +269,45 @@ def do_heft(args):
     return response
 
 
+def plot_csvs(args):
+    cur_dir = os.getcwd()
+    reward_path = pathlib.Path(cur_dir) / 'results'
+    if args.result_folder != '':
+        reward_path = pathlib.Path(cur_dir) / 'results' / args.result_folder
+    os.chdir(reward_path)
+    files = glob.glob('*.csv')
+    plt.style.use("seaborn-muted")
+    plt.figure(figsize=(10, 5))
+    length = 0
+    for file in reversed(files):
+        rewards = pd.read_csv(file)['reward']
+
+        if 'heft' in file:
+            rewards = [rewards[0] for _ in range(length)]
+            plt.plot(rewards, label="rewards")
+            plt.ylabel('reward')
+            plt.xlabel('episodes')
+            plt.legend()
+        else:
+            length = len(rewards)
+            plt.plot(rewards, '--', label="rewards")
+            plt.ylabel('reward')
+            plt.xlabel('episodes')
+            plt.legend()
+    plt_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_all_plt.png'
+    plt.savefig(plt_path)
+
+
 if __name__ == '__main__':
     start = time.time()
     args = parser.parse_args()
     URL = f'http://{args.host}:{args.port}/'
-    if args.alg == 'nns':
+    cur_dir = os.getcwd()
+    if args.plot_csvs:
+        plot_csvs(args)
+    if args.alg == '':
+        print('Done')
+    elif args.alg == 'nns':
         if not args.is_test:
             if not args.is_lstm_agent:
                 rewards = [run_episode_not_parallel(ei, args) for ei in range(args.num_episodes)]
@@ -242,19 +326,20 @@ if __name__ == '__main__':
             plt.ylabel('reward')
             plt.xlabel('episodes')
             plt.legend()
-            cur_dir = os.getcwd()
             plt_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_plt.png'
             plt.savefig(plt_path)
 
             reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_rewards.csv'
-            with open(reward_path, 'w', newline='') as myfile:
-                wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-                wr.writerow(rewards)
+            rewards = np.array(rewards)
+            result = pd.DataFrame()
+            result['reward'] = rewards
+            result.to_csv(reward_path, sep=',', index=None, columns=['reward'])
 
             mean_reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_mean_rewards.csv'
-            with open(mean_reward_path, 'w', newline='') as myfile:
-                wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-                wr.writerow(means)
+            means = np.array(means)
+            result = pd.DataFrame()
+            result['reward'] = means
+            result.to_csv(mean_reward_path, sep=',', index=None, columns=['reward'])
 
         else:
             if not args.is_lstm_agent:
@@ -265,4 +350,9 @@ if __name__ == '__main__':
             save()
     elif args.alg == 'heft':
         ideal_flops = 8.0
-        print(do_heft(args))
+        reward = test_heft_simple(args)
+        reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_heft_rewards.csv'
+        rewards = np.array([reward])
+        result = pd.DataFrame()
+        result['reward'] = rewards
+        result.to_csv(reward_path, sep=',', index=None, columns=['reward'])
