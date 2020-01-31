@@ -14,6 +14,7 @@ import time
 import csv
 import glob
 import pandas as pd
+from datetime import datetime
 
 parser = ArgumentParser()
 
@@ -251,7 +252,6 @@ def test_heft_simple(args):
     return reward
 
 
-
 def save():
     model = requests.post(f'{URL}save')
 
@@ -298,6 +298,44 @@ def plot_csvs(args):
     plt.savefig(plt_path)
 
 
+def merge_results(args):
+    cur_dir = os.getcwd()
+    reward_path = pathlib.Path(cur_dir) / 'results'
+    os.chdir(reward_path)
+    files = glob.glob('*rewards.csv')
+    dfs_mean = []
+    dfs = []
+
+    for file in files:
+        df = pd.read_csv(file)
+        if 'mean' in file:
+            dfs_mean.append(df)
+        else:
+            dfs.append(df)
+
+    len_dfs_mean = len(dfs_mean)
+    len_dfs = len(dfs)
+
+    for idx, df in enumerate(dfs):
+        l = len(df[0])
+        indexes = [(idx+i)*len_dfs for i in range(l)]
+        df['index'] = indexes
+    df_reward_final = pd.concat(dfs)
+    df_reward_final.sort_values(by=['index'])
+    for idx, df in enumerate(dfs_mean):
+        l = len(df[0])
+        indexes = [(idx+i)*len_dfs_mean for i in range(l)]
+        df['index'] = indexes
+    df_mean_reward_final = pd.concat(dfs_mean)
+    df_mean_reward_final.sort_values(by=['index'])
+    df_reward_final.to_csv('reward_final.csv', index=False, encoding='utf-8')
+    df_mean_reward_final.to_csv('reward_mean_final.csv', index=False, encoding='utf-8')
+
+
+
+
+
+
 if __name__ == '__main__':
     start = time.time()
     args = parser.parse_args()
@@ -326,16 +364,16 @@ if __name__ == '__main__':
             plt.ylabel('reward')
             plt.xlabel('episodes')
             plt.legend()
-            plt_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_plt.png'
+            plt_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_{datetime.now()}_plt.png'
             plt.savefig(plt_path)
 
-            reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_rewards.csv'
+            reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_{datetime.now()}_rewards.csv'
             rewards = np.array(rewards)
             result = pd.DataFrame()
             result['reward'] = rewards
             result.to_csv(reward_path, sep=',', index=None, columns=['reward'])
 
-            mean_reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_mean_rewards.csv'
+            mean_reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_{datetime.now()}_mean_rewards.csv'
             means = np.array(means)
             result = pd.DataFrame()
             result['reward'] = means
