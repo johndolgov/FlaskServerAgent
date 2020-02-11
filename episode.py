@@ -148,7 +148,7 @@ def run_episode_not_parallel(ei, logger, args):
     return reward
 
 
-def run_episode_lstm(ei, args):
+def run_episode_lstm(ei, logger, args):
     config = parameter_setup(args, DEFAULT_CONFIG)
     test_wfs, test_times, test_scores, test_size = wf_setup(config['wfs_name'])
     reward, sars_list = episode_lstm(ei, config, test_wfs, test_size)
@@ -397,3 +397,49 @@ if __name__ == '__main__':
         result = pd.DataFrame()
         result['reward'] = rewards
         result.to_csv(reward_path, sep=',', index=None, columns=['reward'])
+
+    elif args.alg == 'compare':
+        ideal_flops = 8.0
+        reward = test_heft_simple(args)
+        reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_heft_rewards.csv'
+        rewards_heft = np.array([reward])
+        result = pd.DataFrame()
+        result['reward'] = rewards_heft
+        result.to_csv(reward_path, sep=',', index=None, columns=['reward'])
+        if not args.is_lstm_agent:
+            logger = Logger(pathlib.Path(os.getcwd()) / 'train_logs' / f'RL-agent-{datetime.now()}')
+            rewards = [run_episode_not_parallel(ei, logger, args) for ei in range(args.num_episodes)]
+            means = np.convolve(rewards, np.ones((500,)))[499:-499] / 500
+            means = means.tolist()
+        else:
+            logger = Logger(pathlib.Path(os.getcwd()) / 'train_logs' / f'RL-LSTM-agent-{datetime.now()}')
+            rewards = [run_episode_lstm(ei, logger, args) for ei in range(args.num_episodes)]
+            means = np.convolve(rewards, np.ones((500,)))[499:-499] / 500
+            means = means.tolist()
+
+        a = time.time() - start
+        rewards_heft = np.repeat(rewards_heft, len(rewards))
+        plt.style.use("seaborn-muted")
+        plt.figure(figsize=(10, 5))
+        plt.plot(rewards, '--', label="rewards")
+        plt.plot(means, '-', label="avg")
+        plt.plot(rewards_heft, '-', label='heft-rewards')
+        plt.ylabel('reward')
+        plt.xlabel('episodes')
+        plt.legend()
+        plt_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_{datetime.now()}_plt.png'
+        plt.savefig(plt_path)
+
+        reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_{datetime.now()}_rewards.csv'
+        rewards = np.array(rewards)
+        result = pd.DataFrame()
+        result['reward'] = rewards
+        result.to_csv(reward_path, sep=',', index=None, columns=['reward'])
+
+        mean_reward_path = pathlib.Path(cur_dir) / 'results' / f'{args.run_name}_{datetime.now()}_mean_rewards.csv'
+        means = np.array(means)
+        result = pd.DataFrame()
+        result['reward'] = means
+        result.to_csv(mean_reward_path, sep=',', index=None, columns=['reward'])
+
+

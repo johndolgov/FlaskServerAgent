@@ -191,8 +191,7 @@ def heft():
 
 
 if __name__ == '__main__':
-    if args.alg == 'nns':
-        graph = tf.get_default_graph()
-        model = get_model()
+    graph = tf.get_default_graph()
+    model = get_model()
     URL = f'http://{args.host}:{args.port}/'
     app.run(host=args.host, port=args.port, debug=True)
