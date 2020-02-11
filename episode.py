@@ -15,6 +15,7 @@ import csv
 import glob
 import pandas as pd
 from datetime import datetime
+from logger import Logger
 
 parser = ArgumentParser()
 
@@ -78,6 +79,7 @@ def episode(ei, config, test_wfs, test_size):
     done = wfl.completed
     state = list(map(float, list(wfl.state)))
     sars_list = list()
+    reward = 0
     for act_time in range(100):
         if act_time > 100:
             raise Exception("attempt to provide action after wf is scheduled")
@@ -91,6 +93,7 @@ def episode(ei, config, test_wfs, test_size):
         state = next_state
         if done:
             return reward, sars_list
+    return reward, sars_list
 
 
 def episode_lstm(ei, config, test_wfs, test_size):
@@ -133,7 +136,7 @@ def replay(batch_size):
     return loss
 
 
-def run_episode_not_parallel(ei, args):
+def run_episode_not_parallel(ei, logger, args):
     config = parameter_setup(args, DEFAULT_CONFIG)
     test_wfs, test_times, test_scores, test_size = wf_setup(config['wfs_name'])
     reward, sars_list = episode(ei, config, test_wfs, test_size)
@@ -141,6 +144,7 @@ def run_episode_not_parallel(ei, args):
     replay(config['batch_size'])
     if ei % 100 == 0:
         print("episode {} completed".format(ei))
+    logger.log_scalar('main/reward', reward, ei)
     return reward
 
 
@@ -152,6 +156,7 @@ def run_episode_lstm(ei, args):
     replay(config['batch_size'])
     if ei % 100 == 0:
         print("episode lstm {} completed".format(ei))
+    logger.log_scalar('main/reward', reward, ei)
     return reward
 
 
@@ -332,10 +337,6 @@ def merge_results(args):
     df_mean_reward_final.to_csv('reward_mean_final.csv', index=False, encoding='utf-8')
 
 
-
-
-
-
 if __name__ == '__main__':
     start = time.time()
     args = parser.parse_args()
@@ -348,11 +349,13 @@ if __name__ == '__main__':
     elif args.alg == 'nns':
         if not args.is_test:
             if not args.is_lstm_agent:
-                rewards = [run_episode_not_parallel(ei, args) for ei in range(args.num_episodes)]
+                logger = Logger(pathlib.Path(os.getcwd()) / 'train_logs' / f'RL-agent-{datetime.now()}')
+                rewards = [run_episode_not_parallel(ei, logger, args) for ei in range(args.num_episodes)]
                 means = np.convolve(rewards, np.ones((500,)))[499:-499] / 500
                 means = means.tolist()
             else:
-                rewards = [run_episode_lstm(ei, args) for ei in range(args.num_episodes)]
+                logger = Logger(pathlib.Path(os.getcwd()) / 'train_logs' / f'RL-LSTM-agent-{datetime.now()}')
+                rewards = [run_episode_lstm(ei, logger, args) for ei in range(args.num_episodes)]
                 means = np.convolve(rewards, np.ones((500,)))[499:-499] / 500
                 means = means.tolist()
 
