@@ -8,7 +8,7 @@ class ResourceGenerator:
         result = []
         res = Resource("res_0")
         for flop, i in zip(list_flops, range(len(list_flops))):
-            node = Node(res.name + "_node_" + str(i), res, [SoftItem.ANY_SOFT])
+            node = Node(res.name + "_node_" + str(i), i, res, [SoftItem.ANY_SOFT])
             node.flops = flop
             result.append(node)
         res.nodes = result

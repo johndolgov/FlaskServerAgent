@@ -64,8 +64,9 @@ class Node:
     Static = "static"
     Busy = "busy"
 
-    def __init__(self, name, resource, soft, flops=0):
+    def __init__(self, name, name_id, resource, soft, flops=0):
         self.name = name
+        self.name_id = name_id
         self.soft = soft
         self.resource = resource
         self.flops = flops
@@ -260,6 +261,7 @@ class Task:
     def __init__(self, id, internal_wf_id, is_head=False, alternates=None, subtask=False):
         self.id = id
         self.internal_wf_id = internal_wf_id
+        self.global_id = self.internal_wf_id[2:]
         self.wf = None
         self.parents = set()  # set of parents tasks
         self.children = set()  # set of children tasks
@@ -387,9 +389,8 @@ class File:
         self.size = size
 
 
-UP_JOB = Task("up_job", "up_job")
-DOWN_JOB = Task("down_job", "down_job")
-
+UP_JOB = Task("up_job", "up_job", -1)
+DOWN_JOB = Task("down_job", "down_job", -1)
 
 
 class Algorithm:
@@ -459,6 +460,7 @@ class ScheduleItem:
     EXECUTING = "executing"
     FAILED = "failed"
     def __init__(self, job, start_time, end_time):
+
         self.job = job ## either task or service operation like vm up
         self.start_time = start_time
         self.end_time = end_time

@@ -4,7 +4,7 @@ from actor import DQNActor
 from actorlstm import DQNLSTMActor
 from heft_deps.ExperimentalManager import ExperimentResourceManager, ModelTimeEstimator
 from heft_deps.resource_generator import ResourceGenerator as rg
-from heft_deps.heft_utility import wf, Utility
+from heft_deps.heft_utility import wf, Utility, draw_heft_schedule
 from flask import jsonify
 from argparse import ArgumentParser
 from heft_deps.heft_settings import run_heft
@@ -12,6 +12,8 @@ from heft_deps.heft_utility import Utility
 import numpy as np
 import tensorflow as tf
 import os
+import pathlib
+import datetime
 
 parser = ArgumentParser()
 
@@ -175,14 +177,21 @@ def heft():
     estimator = ModelTimeEstimator(bandwidth=10)
     _wf = wf(wf_name)
     heft_schedule = run_heft(_wf, rm, estimator)
+    print(heft_schedule)
+    actions = [(proc.start_time, int(proc.job.global_id), node.name_id) for node in heft_schedule.mapping for proc in heft_schedule.mapping[node]]
+    print(actions)
+    actions = sorted(actions, key=lambda x: x[0])
+    actions = [(action[1], action[2]) for action in actions]
+    print(actions)
     makespan = Utility.makespan(heft_schedule)
-    response = {'makespan': makespan}
+    # reward = worst_time / makespan
+    draw_heft_schedule(heft_schedule.mapping, data['worst_time'], len(actions), 'h', '1')
+    response = {'makespan': makespan, 'actions': actions}
     return response
 
 
 if __name__ == '__main__':
-    if args.alg == 'nns':
-        graph = tf.get_default_graph()
-        model = get_model()
+    graph = tf.get_default_graph()
+    model = get_model()
     URL = f'http://{args.host}:{args.port}/'
     app.run(host=args.host, port=args.port, debug=True)
